@@ -1,0 +1,8 @@
+schema = 1
+id = "deepseek-web"
+name = "WebDS"
+version = "0.1.0"
+description = "Opens chat.deepseek.com in a browser block and sends the editor's selection to it."
+icon = "md-web"
+
+window = "main.luau"
