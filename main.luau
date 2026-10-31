@@ -11,36 +11,31 @@
 local PLUGIN = "deepseek-web"
 local CHAT_URL = "https://chat.deepseek.com/"
 local SITE = "deepseek.com"
+local CHAT_HOST = "chat." .. SITE
 
 -- The action the segment's click runs, and the only place the name is built.
 local OPEN_ACTION = ("plugin.%s.open"):format(PLUGIN)
 
-local function is_site(url)
+local function host_of(url)
 	if type(url) ~= "string" then
-		return false
+		return nil
 	end
 	local host = string.match(url, "^%a[%w+.-]*://([^/?#]+)")
 	if host == nil then
-		return false
+		return nil
 	end
-	host = string.lower((string.gsub((string.gsub(host, "^.*@", "")), ":%d+$", "")))
-	return host == SITE or string.sub(host, -#SITE - 1) == "." .. SITE
+	host = string.gsub(host, "^.*@", "")
+	host = string.gsub(host, ":%d+$", "")
+	return string.lower(host)
 end
 
--- The page the user is looking at, if any. A block that failed to load carries
--- the address it wanted and would show a dead page, so it is not a match.
--- Chat pages win over other pages of the site: the composer is the point.
-local function chat_pane(cx)
-	local first
-	for _, pane in ipairs(cx.session:panes()) do
-		if pane.kind == "browser" and is_site(pane.url) and pane.error == nil then
-			if string.find(pane.url, "//chat.", 1, true) ~= nil then
-				return pane.pane
-			end
-			first = first or pane.pane
-		end
-	end
-	return first
+local function is_site(url)
+	local host = host_of(url)
+	return host ~= nil and (host == SITE or string.sub(host, -#SITE - 1) == "." .. SITE)
+end
+
+local function is_chat(url)
+	return host_of(url) == CHAT_HOST
 end
 
 local function refuse(result)
@@ -54,27 +49,53 @@ local function refuse(result)
 end
 
 -- A link arrives with an address of its own, so an open block is steered there
--- rather than merely focused.
+-- rather than merely focused — and shown, because a block can be parked or in
+-- another tab: claiming the click means the click has to have a visible answer.
 local function navigate(cx, pane, url)
 	cx.browser:call({ op = "goto", block = pane, url = url }):next(function(result, err, nextCx)
 		local why = err ~= nil and tostring(err) or refuse(result)
 		if why ~= nil then
 			nextCx:toast("error", "WebDS: 链接没能打开", why)
+			return
 		end
+		nextCx.layout:focus(pane)
 	end)
 end
 
--- Opens the page beside the focused block, or brings the open one back into
--- sight. `how` keeps the split: the user asked for beside, and every path here
--- agrees with the first one opened.
-local function show(cx, url)
-	local pane = chat_pane(cx)
-	if pane ~= nil then
-		cx.layout:focus(pane)
-		return pane
+-- The page the user is looking at: its pane id and address, or nothing. A
+-- block that failed to load keeps the address it wanted and would show a dead
+-- page, so it is not a match — the pane record does not carry that failure,
+-- only the block read does. Chat pages win over other pages of the site: the
+-- composer is the point.
+local function chat_pane(cx)
+	local first, first_url
+	for _, pane in ipairs(cx.session:panes()) do
+		if pane.kind == "browser" and is_site(pane.url) then
+			local read = cx.session:read(pane.pane)
+			if type(read) == "table" and read.kind == "browser" and read.error == nil then
+				if is_chat(pane.url) then
+					return pane.pane, pane.url
+				end
+				first = first or pane.pane
+				first_url = first_url or pane.url
+			end
+		end
 	end
-	cx:open(url, "beside")
-	return nil
+	return first, first_url
+end
+
+-- Opens the page beside the focused block, or brings the open one back into
+-- sight. A block that a link route left on another page of the site is steered
+-- back to the chat: the entry point promises the composer, not the site.
+local function show(cx, url)
+	local pane, current = chat_pane(cx)
+	if pane == nil then
+		cx:open(url, "beside")
+	elseif is_chat(current) then
+		cx.layout:focus(pane)
+	else
+		navigate(cx, pane, url)
+	end
 end
 
 -- Registered at entry load, not under tern.on("window_start"): window_start is

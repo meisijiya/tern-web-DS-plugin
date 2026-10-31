@@ -1,6 +1,6 @@
 # GLOSSARY
 
-本项目的领域术语。只收概念，不收实现细节。
+本项目的领域术语与边界；实现细节在 README 与 ADR 里。
 
 ## Browser block
 
