@@ -62,15 +62,22 @@ local function navigate(cx, pane, url)
 	end)
 end
 
--- The page the user is looking at: its pane id and address, or nothing. A
--- block that failed to load keeps the address it wanted and would show a dead
--- page, so it is not a match — the pane record does not carry that failure,
--- only the block read does. Chat pages win over other pages of the site: the
--- composer is the point.
-local function chat_pane(cx)
+-- The panel serving one tab: its pane id and address, or nothing. The panel is
+-- per tab on purpose — every agent sits in its own tab and wants its own
+-- DeepSeek beside it, so a block of another tab is a different panel and is
+-- left alone.
+--
+-- A block that failed to load keeps the address it wanted and would show a
+-- dead page, so it is not a match — the pane record does not carry that
+-- failure, only the block read does. Chat pages win over other pages of the
+-- site: the composer is the point.
+local function chat_pane(cx, tab)
+	if tab == nil then
+		return nil, nil
+	end
 	local first, first_url
 	for _, pane in ipairs(cx.session:panes()) do
-		if pane.kind == "browser" and is_site(pane.url) then
+		if pane.kind == "browser" and pane.tab == tab and is_site(pane.url) then
 			local read = cx.session:read(pane.pane)
 			if type(read) == "table" and read.kind == "browser" and read.error == nil then
 				if is_chat(pane.url) then
@@ -84,11 +91,13 @@ local function chat_pane(cx)
 	return first, first_url
 end
 
--- Opens the page beside the focused block, or brings the open one back into
--- sight. A block that a link route left on another page of the site is steered
--- back to the chat: the entry point promises the composer, not the site.
+-- Opens the page beside the focused block, or brings this tab's panel back
+-- into sight. A panel that a link route left on another page of the site is
+-- steered back to the chat: the entry point promises the composer, not the
+-- site. A tab without a panel gets a new one, so each agent can have its own.
 local function show(cx, url)
-	local pane, current = chat_pane(cx)
+	local focused = cx.session:focused()
+	local pane, current = chat_pane(cx, focused ~= nil and cx.session:tab_of(focused) or nil)
 	if pane == nil then
 		cx:open(url, "beside")
 	elseif is_chat(current) then
@@ -130,7 +139,7 @@ tern.route.link(function(link, cx)
 	if type(read) == "table" and read.kind == "browser" and is_site(read.url) then
 		return nil
 	end
-	local pane = chat_pane(cx)
+	local pane = chat_pane(cx, cx.session:tab_of(link.pane))
 	if pane ~= nil then
 		navigate(cx, pane, link.url)
 	else

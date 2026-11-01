@@ -15,4 +15,8 @@ Tern 原生的网页块（Windows 上渲染于 WebView2）。由内置命令 `ne
 
 ## WebDS
 
-本插件（`plugin.toml` 的 `id = "deepseek-web"`）：在浏览器块里打开并复用 `chat.deepseek.com`，并把站内链接收进这个块。
+本插件（`plugin.toml` 的 `id = "deepseek-web"`）：在浏览器块里打开 `chat.deepseek.com`，并把站内链接收进同一个块。
+
+## Panel（面板）
+
+WebDS 打开的浏览器块，**按 tab 划分**：一个 tab 一份，多个 tab 可以各开一份（几个 agent 各配一块）。同一 tab 内再点入口只聚焦不新开；别的 tab 的面板互不影响。
