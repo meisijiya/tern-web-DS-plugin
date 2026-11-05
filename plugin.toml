@@ -3,6 +3,6 @@ id = "deepseek-web"
 name = "WebDS"
 version = "0.1.0"
 description = "Opens chat.deepseek.com in a browser block and keeps the site's links there."
-icon = "md-web"
+icon = "link"
 
 window = "main.luau"

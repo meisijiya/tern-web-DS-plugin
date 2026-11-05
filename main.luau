@@ -113,7 +113,7 @@ end
 tern.chrome.status(function()
 	return { {
 		text = "WebDS",
-		icon = "md-web",
+		icon = "link",
 		tone = "muted",
 		command = OPEN_ACTION,
 	} }
@@ -122,7 +122,7 @@ end)
 tern.command({
 	id = "open",
 	title = "WebDS: Open DeepSeek",
-	icon = "md-web",
+	icon = "link",
 	run = function(cx)
 		show(cx, CHAT_URL)
 	end,
